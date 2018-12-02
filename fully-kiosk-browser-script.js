@@ -5,7 +5,8 @@
  * Quelle: https://github.com/Mic-M/iobroker.fully-kiosk-browser-script
  * Version: 0.1
  * Autor: Mic
- * Support: xxx
+ * Support: https://forum.iobroker.net/viewtopic.php?f=21&t=19105
+ * 
  * Fully Browser REST Interface: https://www.ozerov.de/fully-kiosk-browser/de/#rest
  ******************************************************************************/
 

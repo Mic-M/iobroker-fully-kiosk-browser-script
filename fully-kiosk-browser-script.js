@@ -2,7 +2,7 @@
  * ---------------------------
  * Script: Steuerung Fully-Browser in ioBroker
  * ---------------------------
- * Quelle: xxx
+ * Quelle: https://github.com/Mic-M/iobroker.fully-kiosk-browser-script
  * Version: 0.1
  * Autor: Mic
  * Support: xxx

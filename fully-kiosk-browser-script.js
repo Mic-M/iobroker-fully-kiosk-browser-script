@@ -3,11 +3,13 @@
  * Script: Steuerung Fully-Browser in ioBroker
  * ---------------------------
  * Quelle: https://github.com/Mic-M/iobroker.fully-kiosk-browser-script
- * Version: 0.1
+ * Version: 0.2
  * Autor: Mic
  * Support: https://forum.iobroker.net/viewtopic.php?f=21&t=19105
- * 
  * Fully Browser REST Interface: https://www.ozerov.de/fully-kiosk-browser/de/#rest
+ * Change log:
+ * 0.2 - Bug fix, added latest info states, added startApplication command
+ * 0.1 - initial version
  ******************************************************************************/
 
 /*******************************************************************************
@@ -108,7 +110,17 @@ function main() {
             log('URL für Fully-Browser-Kommando [loadURL] scheint nicht valide, daher Befehl nicht ausgeführt.', 'warn');
         }
     });
+    on({id: STATE_PATH + 'Commands.' + 'startApplication', change:"any"}, function (obj) {
+        var strApp = obj.state.val;
+        strApp = strApp.replace(/ /g,""); // Remove Spaces
 
+        if (strApp.length > 2) {
+            fullySendCommand(obj.common.name + '&package=' + strApp);
+            if (EXTINFO) log('Gesendet: ' + obj.common.name + ', [' + strApp + ']');
+        } else {
+            log('Application-Name für Fully-Browser-Kommando [startApplication] scheint nicht valide, daher Befehl nicht ausgeführt.', 'warn');
+        }
+    });
 }
 
 
@@ -160,10 +172,11 @@ function getFullyBrowserInfo() {
 
     thisRequest(thisOptions, function(error, response, body) {
         if (!error && response.statusCode == 200) {
-            fullyInfoObject = JSON.parse(body);
+            var fullyInfoObject = JSON.parse(body);
             var count = 0;
             for (let lpEntry in fullyInfoObject) {
-                setState(STATE_PATH + 'Info.' + lpEntry, fullyInfoObject[lpEntry]);
+                let lpStateId = STATE_PATH + 'Info.' + lpEntry;
+                if(! getState(lpStateId).notExist) setState(STATE_PATH + 'Info.' + lpEntry, fullyInfoObject[lpEntry]);
                 count++;
             }
             if (FDEBUG) log('Fully Browser: ' + count + ' Informationen abgerufen und in Datenpunkte geschrieben.');
@@ -200,15 +213,20 @@ function createScriptStates() {
     createState(STATE_PATH + 'Info.' + 'displayWidthPixels', {'name':'displayWidthPixels', 'type':'number', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'androidVersion', {'name':'androidVersion', 'type':'string', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'kioskMode', {'name':'kioskMode', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
+    createState(STATE_PATH + 'Info.' + 'locationLongitude', {'name':'locationLongitude', 'type':'number', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'deviceModel', {'name':'deviceModel', 'type':'string', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'totalFreeMemory', {'name':'totalFreeMemory', 'type':'number', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'currentPage', {'name':'currentPage', 'type':'string', 'read':true, 'write':false, 'role':'info'});
+    createState(STATE_PATH + 'Info.' + 'deviceName', {'name':'deviceName', 'type':'string', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'currentFragment', {'name':'currentFragment', 'type':'string', 'read':true, 'write':false, 'role':'info'});
+    createState(STATE_PATH + 'Info.' + 'isLicensed', {'name':'isLicensed', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
+    createState(STATE_PATH + 'Info.' + 'locationAltitude', {'name':'locationAltitude', 'type':'number', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'webviewUa', {'name':'webviewUa', 'type':'string', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'appVersionCode', {'name':'appVersionCode', 'type':'number', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'mac', {'name':'mac', 'type':'string', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'screenBrightness', {'name':'screenBrightness', 'type':'number', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'androidSdk', {'name':'androidSdk', 'type':'string', 'read':true, 'write':false, 'role':'info'});
+    createState(STATE_PATH + 'Info.' + 'locationLatitude', {'name':'locationLatitude', 'type':'number', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'isDeviceOwner', {'name':'isDeviceOwner', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'hostname4', {'name':'hostname4', 'type':'string', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'ip6', {'name':'ip6', 'type':'string', 'read':true, 'write':false, 'role':'info'});
@@ -223,6 +241,9 @@ function createScriptStates() {
     createState(STATE_PATH + 'Info.' + 'keyguardLocked', {'name':'keyguardLocked', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'startUrl', {'name':'startUrl', 'type':'string', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info.' + 'isScreenOn', {'name':'isScreenOn', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
+    createState(STATE_PATH + 'Info.' + 'screenOrientation', {'name':'screenOrientation', 'type':'number', 'read':true, 'write':false, 'role':'info'});
+    createState(STATE_PATH + 'Info.' + 'locationProvider', {'name':'locationProvider', 'type':'string', 'read':true, 'write':false, 'role':'info'});
+
 
     // Weitere Infos, die von diesem Script selbst stammen bzw. gesetzt werden
     createState(STATE_PATH + 'Info2.' + 'isFullyAlive', {'name':'Is Fully Browser Alive?', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
@@ -248,10 +269,9 @@ function createScriptStates() {
     // Commands: Strings
     createState(STATE_PATH + 'Commands.' + 'textToSpeech', {'name':'textToSpeech', 'type':'string', 'read':true, 'write':true, 'role':'text'});
     createState(STATE_PATH + 'Commands.' + 'loadURL', {'name':'loadURL', 'type':'string', 'read':true, 'write':true, 'role':'text'});
+    createState(STATE_PATH + 'Commands.' + 'startApplication', {'name':'startApplication', 'type':'string', 'read':true, 'write':true, 'role':'text'});
+
 
 
 
 }
-
-
-

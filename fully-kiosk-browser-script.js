@@ -3,11 +3,11 @@
  * Script: Steuerung Fully-Browser in ioBroker
  * ---------------------------
  * Quelle: https://github.com/Mic-M/iobroker.fully-kiosk-browser-script
- * Version: 0.2
  * Autor: Mic
  * Support: https://forum.iobroker.net/viewtopic.php?f=21&t=19105
  * Fully Browser REST Interface: https://www.ozerov.de/fully-kiosk-browser/de/#rest
  * Change log:
+ * 0.3 - New information states are being created automatically if Fully App is adding additional ones.
  * 0.2 - Bug fix, added latest info states, added startApplication command
  * 0.1 - initial version
  ******************************************************************************/
@@ -50,11 +50,14 @@ const EXTINFO = true;
 init();
 function init() {
  
-    // Create states
+    // Create states. The info states are created through getFullyBrowserInfo()
     createScriptStates();
 
-    // Main Script starten, 3s nach State-Generierung
-    setTimeout(main, 3000);
+    // Main Script starten, 5 Sekunden nach State-Generierung
+    setTimeout(main, 5000);
+
+    // Ebenso nach 6 Sekunden Fully-Info holen bei Script-Start. Wird danach alle x Minuten ausgeführt.
+    setTimeout(getFullyBrowserInfo, 6000);
 
 }
 
@@ -154,13 +157,14 @@ function fullySendCommand(strCommand){
 
 
 /**
- * Fetches the Fully Browser information and updates the states in ioBroker
+ * Fetches the Fully Browser information and updates the states in ioBroker.
+ * Also, it creates all the info states.
  */
 function getFullyBrowserInfo() {
 
     var statusURL = 'http://' + FULLY_IP + ':' + FULLY_PORT + '/?cmd=deviceInfo&type=json&password=' + FULLY_PASSWORD;
 
-    var thisRequest = require("request");
+    var thisRequest = require('request');
 
     var thisOptions = {
       uri: statusURL,
@@ -175,8 +179,10 @@ function getFullyBrowserInfo() {
             var fullyInfoObject = JSON.parse(body);
             var count = 0;
             for (let lpEntry in fullyInfoObject) {
-                let lpStateId = STATE_PATH + 'Info.' + lpEntry;
-                if(! getState(lpStateId).notExist) setState(STATE_PATH + 'Info.' + lpEntry, fullyInfoObject[lpEntry]);
+                // looks like Fully is regularly adding more information, so we create the states on the fly
+                let lpType = typeof fullyInfoObject[lpEntry]; // get Type of Variable as String, like string/number/boolean
+                createState(STATE_PATH + 'Info.' + lpEntry, {'name':lpEntry, 'type':lpType, 'read':true, 'write':false, 'role':'info'});
+                setStateDelayed(STATE_PATH + 'Info.' + lpEntry, fullyInfoObject[lpEntry], 200);
                 count++;
             }
             if (FDEBUG) log('Fully Browser: ' + count + ' Informationen abgerufen und in Datenpunkte geschrieben.');
@@ -192,60 +198,13 @@ function getFullyBrowserInfo() {
 }
 
 
-
 /**
- * Create states needed for this script
+ * Create states needed for this script. 
+ * !Note that all the info states are created through getFullyBrowserInfo()
  */
 function createScriptStates() {
 
-    // Informationen vom Fully-Browser
-    createState(STATE_PATH + 'Info.' + 'foregroundApp', {'name':'foregroundApp', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'appVersionName', {'name':'appVersionName', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'ssid', {'name':'ssid', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'appFreeMemory', {'name':'appFreeMemory', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'batteryLevel', {'name':'batteryLevel', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'wifiSignalLevel', {'name':'wifiSignalLevel', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'appUsedMemory', {'name':'appUsedMemory', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'deviceManufacturer', {'name':'deviceManufacturer', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'displayHeightPixels', {'name':'displayHeightPixels', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'totalUsedMemory', {'name':'totalUsedMemory', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'ip4', {'name':'ip4', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'displayWidthPixels', {'name':'displayWidthPixels', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'androidVersion', {'name':'androidVersion', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'kioskMode', {'name':'kioskMode', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'locationLongitude', {'name':'locationLongitude', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'deviceModel', {'name':'deviceModel', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'totalFreeMemory', {'name':'totalFreeMemory', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'currentPage', {'name':'currentPage', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'deviceName', {'name':'deviceName', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'currentFragment', {'name':'currentFragment', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'isLicensed', {'name':'isLicensed', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'locationAltitude', {'name':'locationAltitude', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'webviewUa', {'name':'webviewUa', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'appVersionCode', {'name':'appVersionCode', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'mac', {'name':'mac', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'screenBrightness', {'name':'screenBrightness', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'androidSdk', {'name':'androidSdk', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'locationLatitude', {'name':'locationLatitude', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'isDeviceOwner', {'name':'isDeviceOwner', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'hostname4', {'name':'hostname4', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'ip6', {'name':'ip6', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'currentTabIndex', {'name':'currentTabIndex', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'deviceID', {'name':'deviceID', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'isDeviceAdmin', {'name':'isDeviceAdmin', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'lastAppStart', {'name':'lastAppStart', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'hostname6', {'name':'hostname6', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'plugged', {'name':'plugged', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'motionDetectorState', {'name':'motionDetectorState', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'maintenanceMode', {'name':'maintenanceMode', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'keyguardLocked', {'name':'keyguardLocked', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'startUrl', {'name':'startUrl', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'isScreenOn', {'name':'isScreenOn', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'screenOrientation', {'name':'screenOrientation', 'type':'number', 'read':true, 'write':false, 'role':'info'});
-    createState(STATE_PATH + 'Info.' + 'locationProvider', {'name':'locationProvider', 'type':'string', 'read':true, 'write':false, 'role':'info'});
-
-
-    // Weitere Infos, die von diesem Script selbst stammen bzw. gesetzt werden
+    // Infos, die von diesem Script selbst stammen bzw. gesetzt werden
     createState(STATE_PATH + 'Info2.' + 'isFullyAlive', {'name':'Is Fully Browser Alive?', 'type':'boolean', 'read':true, 'write':false, 'role':'info'});
     createState(STATE_PATH + 'Info2.' + 'lastInfoUpdate', {'name':'Date/Time of last information update from Fully Browser', 'type':'number', 'read':true, 'write':false, 'role':'value.time'});    
 
@@ -270,8 +229,5 @@ function createScriptStates() {
     createState(STATE_PATH + 'Commands.' + 'textToSpeech', {'name':'textToSpeech', 'type':'string', 'read':true, 'write':true, 'role':'text'});
     createState(STATE_PATH + 'Commands.' + 'loadURL', {'name':'loadURL', 'type':'string', 'read':true, 'write':true, 'role':'text'});
     createState(STATE_PATH + 'Commands.' + 'startApplication', {'name':'startApplication', 'type':'string', 'read':true, 'write':true, 'role':'text'});
-
-
-
 
 }
